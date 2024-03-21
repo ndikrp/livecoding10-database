@@ -1,116 +1,101 @@
 const fs = require('fs')
+const Customer = require('./../models/customerModel')
 
-
-const customers = JSON.parse(
-    fs.readFileSync(`${__dirname}/../data/dummy.json`)
-);
-
-
-const getCustomerData = (req, res) => {
-    console.log(req.requestTime)
-    res.status(200).json({
-        status: 'Success',
-        totalData: customers.length,
-        requestAt: req.requestTime,
-        data: {
-            customers
-        }
-    })
-}
-
-const getCustomerbyId = (req, res) => {
-    const id = req.params.id
-
-    const customer = customers.find(cust => cust._id === id)
-    if (!customer) {
-        return res.status(404).json({
-            status: 'fail',
-            message: `Customer dengan ID : ${id} tidak ditemukan!`
-        })
-    }
-
-    res.status(200).json({
-        status: 'Success',
-        data: {
-            customer
-        }
-    })
-}
-
-const insertUser = (req, res) => {
-    const newCustomer = req.body
-    customers.push(req.body)
-    fs.writeFile(
-        `${__dirname}/data/dummy.json`,
-        JSON.stringify(customers),
-        err => {
-            res.status(201).json({
-                status: 'Success',
-                data: {
-                    customers: newCustomer,
-                }
-            })
-        }
-    )
-}
-
-const updateUser = (req, res) => {
-    const id = req.params.id
-    const customer = customers.find(cust => cust._id === id)
-    const customerIndex = customers.findIndex(cust => cust._id === id)
-
-    if (!customer) {
-        return res.status(404).json({
-            status: 'fail',
-            message: `Customer dengan ID : ${id} tidak ditemukan!`
-        })
-    }
-    customers[customerIndex] = {
-        ...customers[customerIndex],
-        ...req.body
-    }
-    fs.writeFile(
-        `${__dirname}/data/dummy.json`, JSON.stringify(customers), err => {
-            res.status(200).json({
-                status: 'Success',
-                message: `Berhasil update data ID : ${id}!`,
-                data: {
-                    customer: customers[customerIndex],
-                }
-            })
-        }
-    )
-}
-
-const deleteUser = (req, res) => {
-    const id = req.params.id;
-    const customerIndex = customers.findIndex(cust => cust._id === id);
-
-
-    if (customerIndex === -1) {
-        return res.status(404).json({
-            status: 'fail',
-            message: `Customer dengan ID : ${id} tidak ditemukan!`
-        });
-    }
-
-    customers.splice(customerIndex, 1);
-    console.log(customerIndex)
-
-    fs.writeFile(
-        `${__dirname}/../data/dummy.json`, JSON.stringify(customers), err => {
-            if (err) {
-                return res.status(500).json({
-                    status: 'error',
-                    message: 'Failed to update data file!'
-                });
+const getCustomerData = async (req, res) => {
+    try {
+        const customers = await Customer.find()
+        res.status(200).json({
+            status: 'Success',
+            totalData: customers.length,
+            requestAt: req.requestTime,
+            data: {
+                customers
             }
-            res.status(200).json({
-                status: 'Success',
-                message: `Berhasil hapus data ID : ${id}!`
-            });
-        }
-    );
+        })
+    } catch (err) {
+        res.status(400).json({
+            status: 'fail',
+            message: err.message
+        })
+    }
+}
+
+
+const getCustomerbyId = async (req, res) => {
+    try {
+        const id = req.params.id
+        const customer = await Customer.findById(id)
+        res.status(200).json({
+            status: 'Success',
+            data: {
+                customer
+            }
+        })
+    } catch (err) {
+        res.status(400).json({
+            status: 'fail',
+            message: err.message
+        })
+    }
+}
+
+const insertUser = async (req, res) => {
+    try {
+        const newCustomer = await Customer.create(req.body)
+
+        res.status(201).json({
+            status: 'Success',
+            data: {
+                customers: newCustomer,
+            }
+        })
+    } catch (err) {
+        res.status(400).json({
+            status: 'fail',
+            message: err.message
+        })
+    }
+}
+
+const updateUser = async (req, res) => {
+    try {
+        const id = req.params.id
+
+        const customer = await Customer.findByIdAndUpdate(id, req.body, {
+            new: true,
+            runValidators: true,
+        })
+
+        res.status(200).json({
+            status: 'Success',
+            message: `Berhasil update data ID : ${id}!`,
+            data: {
+                customer,
+            },
+        })
+    } catch (err) {
+        res.status(400).json({
+            status: 'fail',
+            message: err.message
+        })
+    }
+}
+
+const deleteUser = async (req, res) => {
+    try {
+        await Customer.findByIdAndDelete(req.params.id)
+
+        res.status(204).json({
+            status: 'Success',
+            message: `Berhasil hapus data ID : ${req.params.id}!`
+        });
+
+    } catch (err) {
+        res.status(400).json({
+            status: 'fail',
+            message: err.message
+        })
+    }
 }
 
 module.exports = {
