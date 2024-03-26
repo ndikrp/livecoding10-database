@@ -3,13 +3,53 @@ const Customer = require('./../models/customerModel')
 
 const getCustomerData = async (req, res) => {
     try {
+        // 1. Basic Filter
         const queryObject = {...req.query}
         const excludedColumn = ['page', 'sort', 'limit', 'fields']
         excludedColumn.forEach(el => delete queryObject[el])
 
         console.log(req.query, queryObject)
 
-        const customers = await Customer.find(queryObject)
+        // 2. Advanced Filter
+        let queryStr = JSON.stringify(queryObject)
+        queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, match => `$${match}`)
+        queryStr = JSON.parse(queryStr)
+        console.log(req.query)
+        
+        let query = Customer.find(queryStr)
+
+        // 3. Sorting
+        if (req.query.sort) {
+            const sortBy = req.query.sort.split(',').join(' ')
+            console.log(sortBy)
+            query = query.sort(sortBy)
+        } else {
+            query = query.sort('-createdAt')
+        }
+
+        // 4. Field Limiting
+        if (req.query.fields) {
+            const fields = req.query.fields.split(',').join(' ')
+            query = query.select(fields)
+        } else {
+            query = query.select('-__v')
+        }
+
+        // 5. Pagination
+        const page = req.query.page * 1 || 1
+        const limit = req.query.limit * 1 || 2
+        const skip = (page - 1) * limit
+        query = query.skip(skip).limit(limit)
+
+        if(req.query.page) {
+            const numCustomers = await Customer.countDocuments()
+            if (skip > numCustomers) {
+                throw new Error('Page not found')
+            }
+        }
+
+        // Query Execution
+        const customers = await query
 
         res.status(200).json({
             status: 'Success',
